@@ -118,6 +118,25 @@ describeEmbeddedPostgres("issue bucket guarantee routes (FUS-765)", () => {
     expect(res.body.parentId).toBe(triageBucket.id);
   });
 
+  it("ignores a triage-bucket setting that points at a non-top-level issue", async () => {
+    const company = await createCompany();
+    const ceo = await createAgent(company.id, "ceo");
+    const topBucket = await createIssue(company.id);
+    const childIssue = await createIssue(company.id, { parentId: topBucket.id });
+    // Stale/misconfigured: the setting points at a child, not a top-level bucket.
+    await db
+      .update(companies)
+      .set({ triageParentIssueId: childIssue.id })
+      .where(eq(companies.id, company.id));
+
+    const res = await request(createApp(company.id, ceo.id))
+      .post(`/api/companies/${company.id}/issues`)
+      .send({ title: "Should stay top-level" });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body.parentId).toBeNull();
+  });
+
   it("leaves a top-level issue orphaned when no triage bucket is configured", async () => {
     const company = await createCompany();
     const ceo = await createAgent(company.id, "ceo");

@@ -5067,7 +5067,17 @@ export function issueRoutes(
       const triageParentIssueId = company?.triageParentIssueId ?? null;
       if (triageParentIssueId) {
         const triageBucket = await svc.getById(triageParentIssueId);
-        if (triageBucket && triageBucket.companyId === companyId) {
+        // Only auto-file under a genuine bucket: a same-company, top-level
+        // (parentId === null), non-terminal issue. A stale config that now
+        // points at a child issue or a closed/replaced task is ignored so we
+        // never nest new tasks into an invalid hierarchy.
+        const isUsableBucket =
+          !!triageBucket &&
+          triageBucket.companyId === companyId &&
+          triageBucket.parentId === null &&
+          triageBucket.status !== "done" &&
+          triageBucket.status !== "cancelled";
+        if (isUsableBucket) {
           resolvedParentId = triageParentIssueId;
         }
       }
