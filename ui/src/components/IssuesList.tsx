@@ -117,7 +117,7 @@ const progressSegmentClasses: Record<IssueStatus, string> = {
 
 /* ── View state ── */
 
-export type IssueSortField = "status" | "priority" | "title" | "created" | "updated" | "workflow";
+export type IssueSortField = "status" | "priority" | "title" | "created" | "updated" | "due" | "workflow";
 export type BoardCardDensity = "auto" | "compact" | "comfortable";
 export type BoardColdLaneMode = "auto" | "collapsed" | "expanded";
 export type BoardColumnPageSize = KanbanColumnPageSize;
@@ -272,6 +272,15 @@ function sortIssues(issues: Issue[], state: IssueViewState): Issue[] {
         return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       case "updated":
         return dir * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+      case "due": {
+        // Issues without a due date always sort last, regardless of direction.
+        const aDue = a.dueAt ? new Date(a.dueAt).getTime() : null;
+        const bDue = b.dueAt ? new Date(b.dueAt).getTime() : null;
+        if (aDue === null && bDue === null) return 0;
+        if (aDue === null) return 1;
+        if (bDue === null) return -1;
+        return dir * (aDue - bDue);
+      }
       default:
         return 0;
     }
@@ -1501,6 +1510,7 @@ export function IssuesList({
                     ["title", "Title"],
                     ["created", "Created"],
                     ["updated", "Updated"],
+                    ["due", "Due date"],
                   ] as const).map(([field, label]) => (
                     <button
                       key={field}
